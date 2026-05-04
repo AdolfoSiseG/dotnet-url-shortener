@@ -1,0 +1,67 @@
+# Project-specific
+/internal-docs
+
+# Build outputs
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+*.dll
+*.exe
+*.pdb
+artifacts/
+
+# .NET artifacts
+project.lock.json
+project.fragment.lock.json
+*.binlog
+
+# IDE: Visual Studio
+.vs/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+
+# IDE: Rider / JetBrains
+.idea/
+*.sln.iml
+*.DotSettings.user
+
+# IDE: VS Code (keep workspace settings, ignore caches)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/
+
+# Test results / coverage
+[Tt]est[Rr]esult*/
+TestResults/
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.coveragexml
+
+# NuGet
+*.nupkg
+*.snupkg
+
+# Logs
+*.log
+[Ll]ogs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local-only config (real secrets live in `dotnet user-secrets`, not here)
+appsettings.Local.json
+appsettings.*.Local.json
+.env
+.env.local
+
+# Docker volumes
+postgres-data/

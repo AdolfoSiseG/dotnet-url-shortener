@@ -14,4 +14,7 @@ public class ShortLink
     public bool IsActive { get; set; } = true;
     public string? PasswordHash { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    public User? User { get; set; }
+    public ICollection<Click> Clicks { get; set; } = [];
 }

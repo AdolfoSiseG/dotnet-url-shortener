@@ -18,4 +18,8 @@ public class Click
     public string? Device { get; set; }
     public string? Referrer { get; set; }
     public bool IsBot { get; set; }
+
+    // Required navigation: every Click belongs to a ShortLink. The null!
+    // initializer tells the compiler EF will populate it on materialization.
+    public ShortLink ShortLink { get; set; } = null!;
 }

@@ -26,5 +26,11 @@ public class ClickConfiguration : IEntityTypeConfiguration<Click>
 
         // Standalone index for global time-series aggregations.
         builder.HasIndex(c => c.ClickedAt);
+
+        // Matches the soft-delete filter on the parent ShortLink so a click
+        // for a deleted link is hidden from default queries too. Use
+        // IgnoreQueryFilters() in places that need historical analytics
+        // (e.g. an admin restore-and-recover screen).
+        builder.HasQueryFilter(c => c.ShortLink.DeletedAt == null);
     }
 }

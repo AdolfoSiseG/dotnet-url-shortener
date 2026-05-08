@@ -18,6 +18,11 @@ public class ShortLinkConfiguration : IEntityTypeConfiguration<ShortLink>
         // Used on every public redirect, must be unique and indexed.
         builder.HasIndex(l => l.ShortCode).IsUnique();
 
+        // Soft delete: hides DeletedAt != null from every default query.
+        // Repositories that need deleted rows (e.g. an admin-only restore
+        // feature) must opt in via IgnoreQueryFilters().
+        builder.HasQueryFilter(l => l.DeletedAt == null);
+
         builder
             .HasMany(l => l.Clicks)
             .WithOne(c => c.ShortLink)

@@ -8,4 +8,5 @@ public class User
     public DateTime CreatedAt { get; set; }
 
     public ICollection<ShortLink> ShortLinks { get; set; } = [];
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = [];
 }

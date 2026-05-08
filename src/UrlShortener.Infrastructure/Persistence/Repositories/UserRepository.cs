@@ -16,7 +16,4 @@ public class UserRepository(AppDbContext db) : IUserRepository
     {
         await db.Users.AddAsync(user, ct);
     }
-
-    public Task SaveChangesAsync(CancellationToken ct = default) =>
-        db.SaveChangesAsync(ct);
 }

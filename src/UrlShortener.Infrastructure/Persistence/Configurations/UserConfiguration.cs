@@ -22,5 +22,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             // Anonymous-link policy: deleting a user does not destroy their
             // links; the FK is nulled and the links live on as anonymous.
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder
+            .HasMany(u => u.RefreshTokens)
+            .WithOne(r => r.User)
+            .HasForeignKey(r => r.UserId)
+            // Refresh tokens are user-owned and meaningless without the user.
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

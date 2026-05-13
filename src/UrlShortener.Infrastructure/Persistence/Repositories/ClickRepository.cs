@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using UrlShortener.Application.Common.Interfaces;
 using UrlShortener.Domain.Entities;
 
@@ -9,4 +10,7 @@ public class ClickRepository(AppDbContext db) : IClickRepository
     {
         await db.Clicks.AddAsync(click, ct);
     }
+
+    public Task<Click?> FindByIdAsync(Guid id, CancellationToken ct = default) =>
+        db.Clicks.FirstOrDefaultAsync(c => c.Id == id, ct);
 }

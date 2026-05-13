@@ -13,6 +13,9 @@ public class ShortLinkRepository(AppDbContext db) : IShortLinkRepository
     public Task<ShortLink?> FindByIdAsync(Guid userId, Guid id, CancellationToken ct = default) =>
         db.ShortLinks.FirstOrDefaultAsync(l => l.Id == id && l.UserId == userId, ct);
 
+    public Task<ShortLink?> FindByShortCodeAsync(string shortCode, CancellationToken ct = default) =>
+        db.ShortLinks.FirstOrDefaultAsync(l => l.ShortCode == shortCode, ct);
+
     public async Task<(IReadOnlyList<ShortLink> Items, int Total)> ListAsync(
         Guid userId,
         ListShortLinksQuery query,

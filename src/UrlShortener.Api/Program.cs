@@ -1,4 +1,6 @@
 using System.Text;
+using Hangfire;
+using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using UrlShortener.Api.Endpoints;
@@ -10,6 +12,20 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// Hangfire wiring lives in the composition root because AddHangfire and
+// AddHangfireServer ship in Hangfire.AspNetCore, and Infrastructure is a
+// plain classlib that should not pull in ASP.NET Core.
+var hangfireConn = builder.Configuration.GetConnectionString("Default")
+    ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
+
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(c => c.UseNpgsqlConnection(hangfireConn),
+        new PostgreSqlStorageOptions { SchemaName = "hangfire" }));
+builder.Services.AddHangfireServer();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
 if (jwtSettings is null
@@ -50,6 +66,12 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    // Hangfire dashboard is dev-only by default. Production deployments
+    // should either skip it or gate it behind an admin claim — see week 11.
+    // The package's default authorization filter already restricts access to
+    // local requests, which is enough for a developer workstation.
+    app.UseHangfireDashboard("/hangfire");
 }
 
 // HTTPS redirect is only meaningful in non-Development environments where

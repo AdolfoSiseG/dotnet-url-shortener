@@ -14,9 +14,10 @@ public class RedirectServiceTests
     private readonly Mock<IClickRepository> _clicks = new();
     private readonly Mock<IPasswordHasher> _hasher = new();
     private readonly Mock<IUnitOfWork> _uow = new();
+    private readonly Mock<IClickEnrichmentScheduler> _scheduler = new();
 
     private RedirectService BuildService() =>
-        new(_links.Object, _clicks.Object, _hasher.Object, _uow.Object);
+        new(_links.Object, _clicks.Object, _hasher.Object, _uow.Object, _scheduler.Object);
 
     private static ClickContext SampleContext() => new("127.0.0.1", "test-agent", null);
 
@@ -55,6 +56,7 @@ public class RedirectServiceTests
 
         result.Should().BeOfType<RedirectNotFound>();
         _clicks.Verify(c => c.AddAsync(It.IsAny<Click>(), It.IsAny<CancellationToken>()), Times.Never);
+        _scheduler.Verify(s => s.Schedule(It.IsAny<Guid>()), Times.Never);
     }
 
     [Fact]
@@ -67,6 +69,7 @@ public class RedirectServiceTests
 
         result.Should().BeOfType<RedirectGone>();
         _clicks.Verify(c => c.AddAsync(It.IsAny<Click>(), It.IsAny<CancellationToken>()), Times.Never);
+        _scheduler.Verify(s => s.Schedule(It.IsAny<Guid>()), Times.Never);
     }
 
     [Fact]
@@ -91,6 +94,7 @@ public class RedirectServiceTests
         result.Should().BeOfType<RedirectPasswordRequired>()
             .Which.LastAttemptFailed.Should().BeFalse();
         _clicks.Verify(c => c.AddAsync(It.IsAny<Click>(), It.IsAny<CancellationToken>()), Times.Never);
+        _scheduler.Verify(s => s.Schedule(It.IsAny<Guid>()), Times.Never);
     }
 
     [Fact]
@@ -112,6 +116,18 @@ public class RedirectServiceTests
     }
 
     [Fact]
+    public async Task ResolveAsync_schedules_enrichment_after_recording_a_click()
+    {
+        var link = BuildLink();
+        _links.Setup(l => l.FindByShortCodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(link);
+
+        await BuildService().ResolveAsync("abc1234", SampleContext());
+
+        // Enrichment must be scheduled exactly once per successful redirect.
+        _scheduler.Verify(s => s.Schedule(It.IsAny<Guid>()), Times.Once);
+    }
+
+    [Fact]
     public async Task UnlockAsync_returns_RedirectFound_with_correct_password()
     {
         var link = BuildLink(passwordHash: "stored-hash");
@@ -123,6 +139,7 @@ public class RedirectServiceTests
         result.Should().BeOfType<RedirectFound>()
             .Which.TargetUrl.Should().Be("https://example.com");
         _clicks.Verify(c => c.AddAsync(It.IsAny<Click>(), It.IsAny<CancellationToken>()), Times.Once);
+        _scheduler.Verify(s => s.Schedule(It.IsAny<Guid>()), Times.Once);
     }
 
     [Fact]
@@ -137,5 +154,6 @@ public class RedirectServiceTests
         result.Should().BeOfType<RedirectPasswordRequired>()
             .Which.LastAttemptFailed.Should().BeTrue();
         _clicks.Verify(c => c.AddAsync(It.IsAny<Click>(), It.IsAny<CancellationToken>()), Times.Never);
+        _scheduler.Verify(s => s.Schedule(It.IsAny<Guid>()), Times.Never);
     }
 }

@@ -10,7 +10,8 @@ public class RedirectService(
     IShortLinkRepository links,
     IClickRepository clicks,
     IPasswordHasher passwordHasher,
-    IUnitOfWork unitOfWork) : IRedirectService
+    IUnitOfWork unitOfWork,
+    IClickEnrichmentScheduler enrichmentScheduler) : IRedirectService
 {
     public async Task<RedirectResult> ResolveAsync(string shortCode, ClickContext context, CancellationToken ct = default)
     {
@@ -62,10 +63,14 @@ public class RedirectService(
             UserAgent = context.UserAgent,
             Referrer = context.Referrer
             // Country, City, Browser, Os, Device, IsBot are filled by the
-            // enrichment job in week 6.
+            // enrichment job dispatched below.
         };
 
         await clicks.AddAsync(click, ct);
         await unitOfWork.SaveChangesAsync(ct);
+
+        // Schedule after SaveChanges so the worker sees a committed row.
+        // Enqueue itself is a quick DB insert into Hangfire's storage tables.
+        enrichmentScheduler.Schedule(click.Id);
     }
 }

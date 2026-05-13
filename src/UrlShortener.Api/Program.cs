@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using UrlShortener.Api.Endpoints;
 using UrlShortener.Application;
 using UrlShortener.Application.Auth;
 using UrlShortener.Infrastructure;
@@ -63,5 +64,6 @@ if (!app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapRedirect();
 
 app.Run();

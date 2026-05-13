@@ -8,6 +8,15 @@ public class CreateShortLinkRequestValidator : AbstractValidator<CreateShortLink
     private static readonly char[] Base62Chars =
         "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".ToCharArray();
 
+    // Slugs that map to framework/feature routes. Blocking them at creation
+    // prevents users from claiming a shortCode that would collide with a
+    // current or future system route (route specificity already protects
+    // existing routes, but reserving here also keeps the data layer clean).
+    private static readonly HashSet<string> ReservedSlugs = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "api", "swagger", "hangfire", "openapi", "health", "metrics", "favicon.ico", "robots.txt"
+    };
+
     public CreateShortLinkRequestValidator()
     {
         RuleFor(x => x.OriginalUrl)
@@ -21,7 +30,9 @@ public class CreateShortLinkRequestValidator : AbstractValidator<CreateShortLink
         RuleFor(x => x.CustomSlug!)
             .Length(4, 20)
             .Must(BeBase62)
-            .WithMessage("CustomSlug must contain only base62 characters (letters and digits).")
+                .WithMessage("CustomSlug must contain only base62 characters (letters and digits).")
+            .Must(slug => !ReservedSlugs.Contains(slug))
+                .WithMessage("This slug is reserved and cannot be used.")
             .When(x => !string.IsNullOrEmpty(x.CustomSlug));
 
         RuleFor(x => x.ExpiresAt!.Value)

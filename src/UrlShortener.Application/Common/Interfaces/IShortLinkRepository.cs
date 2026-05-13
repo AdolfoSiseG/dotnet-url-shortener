@@ -12,6 +12,10 @@ public interface IShortLinkRepository
     // owns the query.
     Task<ShortLink?> FindByIdAsync(Guid userId, Guid id, CancellationToken ct = default);
 
+    // Public lookup used by the redirect endpoint. The soft-delete global
+    // query filter on ShortLinkConfiguration auto-hides deleted rows here.
+    Task<ShortLink?> FindByShortCodeAsync(string shortCode, CancellationToken ct = default);
+
     Task<(IReadOnlyList<ShortLink> Items, int Total)> ListAsync(
         Guid userId,
         ListShortLinksQuery query,

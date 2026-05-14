@@ -66,11 +66,13 @@ public class AnalyticsService(AppDbContext db) : IAnalyticsService
 
         var totalClicks = await db.Clicks.CountAsync(c => c.ShortLink.UserId == userId, ct);
 
+        // Order/Take must happen before the projection: EF cannot translate
+        // an OrderBy over a constructor argument of a freshly built DTO.
         var topLinks = await db.ShortLinks
             .Where(l => l.UserId == userId)
-            .Select(l => new TopLinkDto(l.Id, l.ShortCode, l.OriginalUrl, l.Clicks.Count()))
-            .OrderByDescending(t => t.Clicks)
+            .OrderByDescending(l => l.Clicks.Count())
             .Take(TopLinksLimit)
+            .Select(l => new TopLinkDto(l.Id, l.ShortCode, l.OriginalUrl, l.Clicks.Count()))
             .ToListAsync(ct);
 
         return new OverviewStatsDto(totalLinks, activeLinks, totalClicks, topLinks);

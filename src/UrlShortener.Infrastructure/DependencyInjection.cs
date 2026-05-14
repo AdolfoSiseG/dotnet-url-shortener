@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using UrlShortener.Application.Analytics.Interfaces;
 using UrlShortener.Application.Auth;
 using UrlShortener.Application.Auth.Interfaces;
 using UrlShortener.Application.Common.Interfaces;
 using UrlShortener.Application.Links.Interfaces;
+using UrlShortener.Infrastructure.Analytics;
 using UrlShortener.Infrastructure.Auth;
 using UrlShortener.Infrastructure.Geolocation;
 using UrlShortener.Infrastructure.Jobs;
@@ -33,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IShortLinkRepository, ShortLinkRepository>();
         services.AddScoped<IClickRepository, ClickRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IAnalyticsService, AnalyticsService>();
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();

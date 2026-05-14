@@ -15,17 +15,24 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 // Hangfire wiring lives in the composition root because AddHangfire and
 // AddHangfireServer ship in Hangfire.AspNetCore, and Infrastructure is a
-// plain classlib that should not pull in ASP.NET Core.
-var hangfireConn = builder.Configuration.GetConnectionString("Default")
-    ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
+// plain classlib that should not pull in ASP.NET Core. The Hangfire:Enabled
+// flag lets integration tests skip the worker and storage initialization,
+// since they replace IClickEnrichmentScheduler with a no-op.
+var hangfireEnabled = builder.Configuration.GetValue("Hangfire:Enabled", true);
 
-builder.Services.AddHangfire(config => config
-    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-    .UseSimpleAssemblyNameTypeSerializer()
-    .UseRecommendedSerializerSettings()
-    .UsePostgreSqlStorage(c => c.UseNpgsqlConnection(hangfireConn),
-        new PostgreSqlStorageOptions { SchemaName = "hangfire" }));
-builder.Services.AddHangfireServer();
+if (hangfireEnabled)
+{
+    var hangfireConn = builder.Configuration.GetConnectionString("Default")
+        ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
+
+    builder.Services.AddHangfire(config => config
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UsePostgreSqlStorage(c => c.UseNpgsqlConnection(hangfireConn),
+            new PostgreSqlStorageOptions { SchemaName = "hangfire" }));
+    builder.Services.AddHangfireServer();
+}
 
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
 if (jwtSettings is null
@@ -71,14 +78,17 @@ if (app.Environment.IsDevelopment())
     // should either skip it or gate it behind an admin claim — see week 11.
     // The package's default authorization filter already restricts access to
     // local requests, which is enough for a developer workstation.
-    app.UseHangfireDashboard("/hangfire");
+    if (hangfireEnabled)
+    {
+        app.UseHangfireDashboard("/hangfire");
+    }
 }
 
-// HTTPS redirect is only meaningful in non-Development environments where
-// a real TLS certificate is configured. Skipping it in Development avoids
-// the "Failed to determine the https port for redirect" warning when the
-// http launch profile is used.
-if (!app.Environment.IsDevelopment())
+// HTTPS redirect is only meaningful in Production where a real TLS
+// certificate is configured. Skipping it in other environments avoids the
+// "Failed to determine the https port for redirect" warning under the http
+// launch profile and inside the integration test harness.
+if (app.Environment.IsProduction())
 {
     app.UseHttpsRedirection();
 }
@@ -89,3 +99,7 @@ app.MapControllers();
 app.MapRedirect();
 
 app.Run();
+
+// Exposes the implicit Program type to the integration test assembly so
+// WebApplicationFactory<Program> can host this app in-process.
+public partial class Program { }

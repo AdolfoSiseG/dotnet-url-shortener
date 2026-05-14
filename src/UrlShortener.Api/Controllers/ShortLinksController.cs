@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using UrlShortener.Api.Extensions;
 using UrlShortener.Application.Analytics.Dtos;
 using UrlShortener.Application.Analytics.Interfaces;
+using UrlShortener.Application.Common.Interfaces;
 using UrlShortener.Application.Common.Models;
 using UrlShortener.Application.Links.Dtos;
 using UrlShortener.Application.Links.Interfaces;
@@ -17,6 +18,7 @@ namespace UrlShortener.Api.Controllers;
 public class ShortLinksController(
     IShortLinkService linksService,
     IAnalyticsService analytics,
+    IQrCodeGenerator qrGenerator,
     IValidator<CreateShortLinkRequest> createValidator,
     IValidator<UpdateShortLinkRequest> updateValidator) : ControllerBase
 {
@@ -108,5 +110,35 @@ public class ShortLinksController(
     {
         var stats = await analytics.GetLinkStatsAsync(User.GetUserId(), id, ct);
         return stats is null ? NotFound() : Ok(stats);
+    }
+
+    [HttpGet("{id:guid}/qr")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> QrCode(
+        Guid id,
+        [FromQuery] int size = 300,
+        CancellationToken ct = default)
+    {
+        // Clamp to a sensible pixel range so a malicious client can't ask
+        // the server to render a 100 000 × 100 000 PNG.
+        size = Math.Clamp(size, 100, 1000);
+
+        var link = await linksService.GetAsync(User.GetUserId(), id, ct);
+        if (link is null) return NotFound();
+
+        // QR matrices for short URLs land around 33 modules wide; convert
+        // the user-facing pixel size into pixels-per-module, with a floor
+        // that keeps very small requests still scannable.
+        var pixelsPerModule = Math.Max(3, size / 33);
+
+        // Compose the public short URL from the live request. Behind a
+        // reverse proxy, Request.Scheme/Host reflect the original client
+        // values once ForwardedHeadersMiddleware is configured (week 11).
+        var shortUrl = $"{Request.Scheme}://{Request.Host}/{link.ShortCode}";
+        var png = qrGenerator.GenerateAsPng(shortUrl, pixelsPerModule);
+
+        return File(png, "image/png");
     }
 }

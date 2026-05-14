@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Caching.Memory;
 using UrlShortener.Application.Analytics.Interfaces;
 using UrlShortener.Application.Auth;
 using UrlShortener.Application.Auth.Interfaces;
@@ -12,6 +13,7 @@ using UrlShortener.Infrastructure.Geolocation;
 using UrlShortener.Infrastructure.Jobs;
 using UrlShortener.Infrastructure.Persistence;
 using UrlShortener.Infrastructure.Persistence.Repositories;
+using UrlShortener.Infrastructure.QrCodes;
 using UrlShortener.Infrastructure.ShortCodes;
 using UrlShortener.Infrastructure.UserAgents;
 
@@ -35,7 +37,17 @@ public static class DependencyInjection
         services.AddScoped<IShortLinkRepository, ShortLinkRepository>();
         services.AddScoped<IClickRepository, ClickRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
-        services.AddScoped<IAnalyticsService, AnalyticsService>();
+
+        services.AddMemoryCache();
+        services.AddSingleton<IQrCodeGenerator, QrCodeGenerator>();
+
+        // Analytics is registered as the concrete type and wrapped by the
+        // cached decorator. Anyone resolving IAnalyticsService gets the
+        // decorator; only the decorator resolves the concrete service.
+        services.AddScoped<AnalyticsService>();
+        services.AddScoped<IAnalyticsService>(sp => new CachedAnalyticsService(
+            sp.GetRequiredService<AnalyticsService>(),
+            sp.GetRequiredService<IMemoryCache>()));
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();

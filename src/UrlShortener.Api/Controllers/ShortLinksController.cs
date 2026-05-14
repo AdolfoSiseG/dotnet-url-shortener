@@ -2,6 +2,8 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UrlShortener.Api.Extensions;
+using UrlShortener.Application.Analytics.Dtos;
+using UrlShortener.Application.Analytics.Interfaces;
 using UrlShortener.Application.Common.Models;
 using UrlShortener.Application.Links.Dtos;
 using UrlShortener.Application.Links.Interfaces;
@@ -14,6 +16,7 @@ namespace UrlShortener.Api.Controllers;
 [Route("api/links")]
 public class ShortLinksController(
     IShortLinkService linksService,
+    IAnalyticsService analytics,
     IValidator<CreateShortLinkRequest> createValidator,
     IValidator<UpdateShortLinkRequest> updateValidator) : ControllerBase
 {
@@ -95,5 +98,15 @@ public class ShortLinksController(
     {
         var deleted = await linksService.DeleteAsync(User.GetUserId(), id, ct);
         return deleted ? NoContent() : NotFound();
+    }
+
+    [HttpGet("{id:guid}/stats")]
+    [ProducesResponseType(typeof(LinkStatsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<LinkStatsDto>> Stats(Guid id, CancellationToken ct)
+    {
+        var stats = await analytics.GetLinkStatsAsync(User.GetUserId(), id, ct);
+        return stats is null ? NotFound() : Ok(stats);
     }
 }

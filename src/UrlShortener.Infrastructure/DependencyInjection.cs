@@ -25,8 +25,9 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Default")
+        var rawConnectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
+        var connectionString = NpgsqlConnectionString.FromRaw(rawConnectionString);
 
         services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 

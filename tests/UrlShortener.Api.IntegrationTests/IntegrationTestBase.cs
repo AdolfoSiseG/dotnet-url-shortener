@@ -16,6 +16,11 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected ApiFactory Factory { get; private set; } = null!;
     protected HttpClient Client { get; private set; } = null!;
 
+    // Each test gets a synthetic IP routed via X-Forwarded-For. The auth
+    // and redirect rate limiters partition by IP, so a unique value here
+    // guarantees no leak of rate-limit state from one test to the next.
+    protected string TestIp { get; private set; } = string.Empty;
+
     protected IntegrationTestBase(PostgresContainerFixture container)
     {
         _container = container;
@@ -25,9 +30,14 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     {
         Factory = new ApiFactory(_container.ConnectionString);
         await Factory.EnsureMigratedAsync();
+        TestIp = NewSyntheticIp();
         Client = Factory.CreateClient();
+        Client.DefaultRequestHeaders.Add("X-Forwarded-For", TestIp);
         await ResetDatabaseAsync();
     }
+
+    private static string NewSyntheticIp() =>
+        $"10.{Random.Shared.Next(1, 255)}.{Random.Shared.Next(0, 255)}.{Random.Shared.Next(1, 255)}";
 
     public Task DisposeAsync()
     {
@@ -58,6 +68,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         var auth = (await response.Content.ReadFromJsonAsync<AuthResponse>())!;
 
         var client = Factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Forwarded-For", TestIp);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
         return (auth, client);
     }
@@ -65,8 +76,12 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     // The default WebApplicationFactory client follows redirects, which
     // hides the 301 status from the redirect endpoint. Use this client
     // when the test needs to assert on the redirect response itself.
-    protected HttpClient CreateClientNoRedirect() =>
-        Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+    protected HttpClient CreateClientNoRedirect()
+    {
+        var client = Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.Add("X-Forwarded-For", TestIp);
+        return client;
+    }
 
     // Opens a fresh DbContext scope so a test can mutate state that the API
     // does not allow through its public surface (e.g. backdating ExpiresAt).

@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      # Treat warnings as errors in CI so any new warning blocks the merge.
+      # The csproj-level Nullable=enable already turns null-safety violations
+      # into warnings; this promotes them (and any other warning) to errors.
+      - name: Build
+        run: dotnet build --no-restore --configuration Release --property:TreatWarningsAsErrors=true
+
+      # Integration tests rely on Testcontainers, which uses the Docker
+      # daemon preinstalled on ubuntu-latest runners — no extra service
+      # block is needed.
+      - name: Test
+        run: dotnet test --no-build --configuration Release --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/TestResults/test-results.trx'

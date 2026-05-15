@@ -1,5 +1,7 @@
 # URL Shortener with Analytics
 
+[![CI](https://github.com/AdolfoSiseG/dotnet-url-shortener/actions/workflows/ci.yml/badge.svg)](https://github.com/AdolfoSiseG/dotnet-url-shortener/actions/workflows/ci.yml)
+
 A URL shortener with detailed click analytics, built in .NET 10.
 
 > **Status:** Work in progress. v1.0 in active development.

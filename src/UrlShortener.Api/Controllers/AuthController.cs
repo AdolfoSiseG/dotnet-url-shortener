@@ -1,5 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using UrlShortener.Api.RateLimiting;
 using UrlShortener.Application.Auth.Dtos;
 using UrlShortener.Application.Auth.Interfaces;
 
@@ -7,6 +9,7 @@ namespace UrlShortener.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+[EnableRateLimiting(RateLimitingExtensions.AuthPolicy)]
 public class AuthController(
     IAuthService authService,
     IValidator<RegisterRequest> registerValidator,

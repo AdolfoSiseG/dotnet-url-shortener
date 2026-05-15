@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using UrlShortener.Api.RateLimiting;
 using UrlShortener.Api.Templates;
 using UrlShortener.Application.Redirects.Interfaces;
 using UrlShortener.Application.Redirects.Models;
@@ -14,12 +15,14 @@ public static class RedirectEndpoint
     {
         endpoints.MapGet("/{shortCode}", HandleGet)
             .WithName("Redirect")
-            .ExcludeFromDescription();
+            .ExcludeFromDescription()
+            .RequireRateLimiting(RateLimitingExtensions.RedirectPolicy);
 
         endpoints.MapPost("/{shortCode}", HandlePost)
             .WithName("RedirectUnlock")
             .ExcludeFromDescription()
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .RequireRateLimiting(RateLimitingExtensions.RedirectPolicy);
 
         return endpoints;
     }
@@ -71,22 +74,8 @@ public static class RedirectEndpoint
         if (referer.Length > 2048) referer = referer[..2048];
 
         return new ClickContext(
-            IpAddress: GetClientIp(context),
+            IpAddress: ClientIpResolver.Resolve(context),
             UserAgent: userAgent,
             Referrer: string.IsNullOrEmpty(referer) ? null : referer);
-    }
-
-    private static string GetClientIp(HttpContext context)
-    {
-        // Prefer X-Forwarded-For (set by reverse proxies in production) over
-        // the socket-level RemoteIpAddress. The header is a comma-separated
-        // list with the original client first. Trust hardening (KnownProxies)
-        // is added in the deploy week.
-        var forwarded = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrEmpty(forwarded))
-        {
-            return forwarded.Split(',')[0].Trim();
-        }
-        return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
 }

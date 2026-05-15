@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using UrlShortener.Api.Endpoints;
 using UrlShortener.Api.Middleware;
+using UrlShortener.Api.RateLimiting;
 using UrlShortener.Application;
 using UrlShortener.Application.Auth;
 using UrlShortener.Infrastructure;
@@ -75,9 +76,12 @@ builder.Services.AddOpenApi();
 builder.Services.AddExceptionHandler<DomainExceptionHandler>();
 builder.Services.AddProblemDetails();
 
+builder.Services.AddApiRateLimiting();
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
 {

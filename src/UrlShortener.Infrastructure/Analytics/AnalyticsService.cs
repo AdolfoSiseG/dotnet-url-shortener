@@ -35,20 +35,24 @@ public class AnalyticsService(AppDbContext db) : IAnalyticsService
             .Select(c => (DateTime?)c.ClickedAt)
             .FirstOrDefaultAsync(ct);
 
-        var byCountry = await linkClicks
+        var byCountry = (await linkClicks
             .Where(c => c.Country != null)
             .GroupBy(c => c.Country!)
-            .Select(g => new CountryStatDto(g.Key, g.Count()))
-            .OrderByDescending(s => s.Clicks)
+            .Select(g => new { Country = g.Key, Clicks = g.Count() })
+            .OrderByDescending(x => x.Clicks)
             .Take(CountryLimit)
-            .ToListAsync(ct);
+            .ToListAsync(ct))
+            .Select(x => new CountryStatDto(x.Country, x.Clicks))
+            .ToList();
 
-        var byDevice = await linkClicks
+        var byDevice = (await linkClicks
             .Where(c => c.Device != null)
             .GroupBy(c => c.Device!)
-            .Select(g => new DeviceStatDto(g.Key, g.Count()))
-            .OrderByDescending(s => s.Clicks)
-            .ToListAsync(ct);
+            .Select(g => new { Device = g.Key, Clicks = g.Count() })
+            .OrderByDescending(x => x.Clicks)
+            .ToListAsync(ct))
+            .Select(x => new DeviceStatDto(x.Device, x.Clicks))
+            .ToList();
 
         return new LinkStatsDto(link.Id, link.ShortCode, totalClicks, uniqueIps, lastClickAt, byCountry, byDevice);
     }
@@ -78,22 +82,30 @@ public class AnalyticsService(AppDbContext db) : IAnalyticsService
         return new OverviewStatsDto(totalLinks, activeLinks, totalClicks, topLinks);
     }
 
+    // Aggregations project to an anonymous row first because EF Core 10
+    // cannot translate an OrderBy/Take whose key is a constructor argument
+    // of a record DTO. The final projection happens client-side after the
+    // small bounded result set has come back.
     public async Task<IReadOnlyList<CountryStatDto>> GetByCountryAsync(Guid userId, CancellationToken ct = default) =>
-        await db.Clicks
+        (await db.Clicks
             .Where(c => c.ShortLink.UserId == userId && c.Country != null)
             .GroupBy(c => c.Country!)
-            .Select(g => new CountryStatDto(g.Key, g.Count()))
-            .OrderByDescending(s => s.Clicks)
+            .Select(g => new { Country = g.Key, Clicks = g.Count() })
+            .OrderByDescending(x => x.Clicks)
             .Take(CountryLimit)
-            .ToListAsync(ct);
+            .ToListAsync(ct))
+            .Select(x => new CountryStatDto(x.Country, x.Clicks))
+            .ToList();
 
     public async Task<IReadOnlyList<DeviceStatDto>> GetByDeviceAsync(Guid userId, CancellationToken ct = default) =>
-        await db.Clicks
+        (await db.Clicks
             .Where(c => c.ShortLink.UserId == userId && c.Device != null)
             .GroupBy(c => c.Device!)
-            .Select(g => new DeviceStatDto(g.Key, g.Count()))
-            .OrderByDescending(s => s.Clicks)
-            .ToListAsync(ct);
+            .Select(g => new { Device = g.Key, Clicks = g.Count() })
+            .OrderByDescending(x => x.Clicks)
+            .ToListAsync(ct))
+            .Select(x => new DeviceStatDto(x.Device, x.Clicks))
+            .ToList();
 
     // Expected query plan on Postgres 17 (verify locally with EXPLAIN ANALYZE):
     //
@@ -140,11 +152,13 @@ public class AnalyticsService(AppDbContext db) : IAnalyticsService
     }
 
     public async Task<IReadOnlyList<ReferrerStatDto>> GetByReferrerAsync(Guid userId, CancellationToken ct = default) =>
-        await db.Clicks
+        (await db.Clicks
             .Where(c => c.ShortLink.UserId == userId && c.Referrer != null)
             .GroupBy(c => c.Referrer!)
-            .Select(g => new ReferrerStatDto(g.Key, g.Count()))
-            .OrderByDescending(s => s.Clicks)
+            .Select(g => new { Referrer = g.Key, Clicks = g.Count() })
+            .OrderByDescending(x => x.Clicks)
             .Take(ReferrerLimit)
-            .ToListAsync(ct);
+            .ToListAsync(ct))
+            .Select(x => new ReferrerStatDto(x.Referrer, x.Clicks))
+            .ToList();
 }

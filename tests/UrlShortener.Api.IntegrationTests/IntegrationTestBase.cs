@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using UrlShortener.Api.IntegrationTests.Fixtures;
@@ -59,5 +60,20 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
         return (auth, client);
+    }
+
+    // The default WebApplicationFactory client follows redirects, which
+    // hides the 301 status from the redirect endpoint. Use this client
+    // when the test needs to assert on the redirect response itself.
+    protected HttpClient CreateClientNoRedirect() =>
+        Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+    // Opens a fresh DbContext scope so a test can mutate state that the API
+    // does not allow through its public surface (e.g. backdating ExpiresAt).
+    protected async Task WithDbAsync(Func<AppDbContext, Task> action)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await action(db);
     }
 }

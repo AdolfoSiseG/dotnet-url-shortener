@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-urlshortener}
+    # Not exposed to the host: the API reaches Postgres over the internal
+    # Docker network. To inspect it from the host, add a "5433:5432" port
+    # mapping (5433 avoids clashing with a local dev Postgres on 5432).
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-urlshortener}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-urlshortener};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
+      Jwt__Secret: ${JWT_SECRET:?JWT_SECRET is required - copy .env.example to .env and set it}
+      Jwt__Issuer: ${JWT_ISSUER:-url-shortener}
+      Jwt__Audience: ${JWT_AUDIENCE:-url-shortener}
+      # Compose applies migrations on boot for a one-command local bring-up.
+      Database__MigrateOnStartup: "true"
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres-data:

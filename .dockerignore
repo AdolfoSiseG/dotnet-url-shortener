@@ -1,0 +1,30 @@
+# Build outputs
+**/bin/
+**/obj/
+**/TestResults/
+
+# VCS and CI
+.git/
+.github/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.lscache
+.claude/
+
+# Project-internal, never shipped
+internal-docs/
+tests/
+
+# Docker and local env (compose builds the context; these need not be inside it)
+Dockerfile
+.dockerignore
+docker-compose*.yml
+.env
+.env.*
+
+# Docs
+README.md
+LICENSE

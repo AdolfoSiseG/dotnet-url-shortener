@@ -65,3 +65,7 @@ appsettings.*.Local.json
 
 # Docker volumes
 postgres-data/
+
+# IDE / language server caches
+*.lscache
+.claude/

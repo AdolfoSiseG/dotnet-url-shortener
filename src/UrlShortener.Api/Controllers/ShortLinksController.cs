@@ -8,7 +8,6 @@ using UrlShortener.Application.Common.Interfaces;
 using UrlShortener.Application.Common.Models;
 using UrlShortener.Application.Links.Dtos;
 using UrlShortener.Application.Links.Interfaces;
-using UrlShortener.Domain.Exceptions;
 
 namespace UrlShortener.Api.Controllers;
 
@@ -34,15 +33,8 @@ public class ShortLinksController(
         var validation = await createValidator.ValidateAsync(request, ct);
         if (!validation.IsValid) return ValidationProblem(validation.ToString());
 
-        try
-        {
-            var dto = await linksService.CreateAsync(User.GetUserId(), request, ct);
-            return CreatedAtAction(nameof(Get), new { id = dto.Id }, dto);
-        }
-        catch (ShortCodeAlreadyTakenException ex)
-        {
-            return Conflict(new { error = ex.Message });
-        }
+        var dto = await linksService.CreateAsync(User.GetUserId(), request, ct);
+        return CreatedAtAction(nameof(Get), new { id = dto.Id }, dto);
     }
 
     [HttpGet]

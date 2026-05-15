@@ -4,6 +4,7 @@ using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using UrlShortener.Api.Endpoints;
+using UrlShortener.Api.Middleware;
 using UrlShortener.Application;
 using UrlShortener.Application.Auth;
 using UrlShortener.Infrastructure;
@@ -68,7 +69,15 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
+// Global error handling: DomainExceptionHandler maps known domain failures
+// to RFC 7807 Problem Details; AddProblemDetails enriches the default
+// generic 500 response with the same shape.
+builder.Services.AddExceptionHandler<DomainExceptionHandler>();
+builder.Services.AddProblemDetails();
+
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {

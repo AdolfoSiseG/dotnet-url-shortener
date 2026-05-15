@@ -3,8 +3,10 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Scalar.AspNetCore;
 using UrlShortener.Api.Endpoints;
 using UrlShortener.Api.Middleware;
+using UrlShortener.Api.OpenApi;
 using UrlShortener.Api.RateLimiting;
 using UrlShortener.Application;
 using UrlShortener.Application.Auth;
@@ -68,7 +70,10 @@ builder.Services
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer<JwtBearerSchemeTransformer>();
+});
 
 // Global error handling: DomainExceptionHandler maps known domain failures
 // to RFC 7807 Problem Details; AddProblemDetails enriches the default
@@ -83,18 +88,20 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseRateLimiter();
 
-if (app.Environment.IsDevelopment())
+// OpenAPI doc and Scalar UI ship in every environment so the deployed
+// portfolio demo can be explored from a browser. The Hangfire dashboard
+// stays dev-only because it can enqueue jobs (see week 11 for prod gating).
+app.MapOpenApi();
+app.MapScalarApiReference(options =>
 {
-    app.MapOpenApi();
+    options
+        .WithTitle("URL Shortener API")
+        .WithTheme(ScalarTheme.BluePlanet);
+});
 
-    // Hangfire dashboard is dev-only by default. Production deployments
-    // should either skip it or gate it behind an admin claim — see week 11.
-    // The package's default authorization filter already restricts access to
-    // local requests, which is enough for a developer workstation.
-    if (hangfireEnabled)
-    {
-        app.UseHangfireDashboard("/hangfire");
-    }
+if (app.Environment.IsDevelopment() && hangfireEnabled)
+{
+    app.UseHangfireDashboard("/hangfire");
 }
 
 // HTTPS redirect is only meaningful in Production where a real TLS

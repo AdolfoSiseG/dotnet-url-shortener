@@ -21,6 +21,7 @@ public class ShortLinksController(
     IValidator<CreateShortLinkRequest> createValidator,
     IValidator<UpdateShortLinkRequest> updateValidator) : ControllerBase
 {
+    /// <summary>Creates a new short link owned by the caller.</summary>
     [HttpPost]
     [ProducesResponseType(typeof(ShortLinkDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -37,6 +38,7 @@ public class ShortLinksController(
         return CreatedAtAction(nameof(Get), new { id = dto.Id }, dto);
     }
 
+    /// <summary>Lists the caller's links with pagination and optional status / search filters.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(PaginatedResult<ShortLinkDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -57,6 +59,7 @@ public class ShortLinksController(
         return Ok(result);
     }
 
+    /// <summary>Returns one of the caller's links by id.</summary>
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(ShortLinkDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -67,6 +70,7 @@ public class ShortLinksController(
         return dto is null ? NotFound() : Ok(dto);
     }
 
+    /// <summary>Updates title, expiry, or active flag on one of the caller's links.</summary>
     [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(ShortLinkDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -84,6 +88,7 @@ public class ShortLinksController(
         return dto is null ? NotFound() : Ok(dto);
     }
 
+    /// <summary>Soft-deletes one of the caller's links.</summary>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -94,6 +99,7 @@ public class ShortLinksController(
         return deleted ? NoContent() : NotFound();
     }
 
+    /// <summary>Returns aggregated click stats for one of the caller's links.</summary>
     [HttpGet("{id:guid}/stats")]
     [ProducesResponseType(typeof(LinkStatsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -104,6 +110,7 @@ public class ShortLinksController(
         return stats is null ? NotFound() : Ok(stats);
     }
 
+    /// <summary>Returns a PNG QR code that encodes the public short URL.</summary>
     [HttpGet("{id:guid}/qr")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

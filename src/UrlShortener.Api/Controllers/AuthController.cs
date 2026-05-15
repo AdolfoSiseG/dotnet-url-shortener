@@ -17,6 +17,7 @@ public class AuthController(
     IValidator<RefreshRequest> refreshValidator,
     IValidator<LogoutRequest> logoutValidator) : ControllerBase
 {
+    /// <summary>Registers a new user and returns an access/refresh token pair.</summary>
     [HttpPost("register")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -31,6 +32,7 @@ public class AuthController(
         return Ok(await authService.RegisterAsync(request, ct));
     }
 
+    /// <summary>Authenticates a user and returns an access/refresh token pair.</summary>
     [HttpPost("login")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -45,6 +47,7 @@ public class AuthController(
         return Ok(await authService.LoginAsync(request, ct));
     }
 
+    /// <summary>Rotates the supplied refresh token, returning a new pair.</summary>
     [HttpPost("refresh")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -59,8 +62,7 @@ public class AuthController(
         return Ok(await authService.RefreshAsync(request.RefreshToken, ct));
     }
 
-    // Idempotent: returns 204 whether or not the token existed or was
-    // already revoked. The client can safely retry on transient failures.
+    /// <summary>Revokes the supplied refresh token. Idempotent.</summary>
     [HttpPost("logout")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

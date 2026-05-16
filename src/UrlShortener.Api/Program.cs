@@ -28,8 +28,11 @@ var hangfireEnabled = builder.Configuration.GetValue("Hangfire:Enabled", true);
 
 if (hangfireEnabled)
 {
-    var hangfireConn = builder.Configuration.GetConnectionString("Default")
-        ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
+    // Same normalization EF Core gets in AddInfrastructure: managed hosts
+    // hand out a postgres:// URI that Hangfire's Npgsql factory cannot parse.
+    var hangfireConn = NpgsqlConnectionString.FromRaw(
+        builder.Configuration.GetConnectionString("Default")
+        ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured."));
 
     builder.Services.AddHangfire(config => config
         .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

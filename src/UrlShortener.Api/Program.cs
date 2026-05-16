@@ -115,6 +115,11 @@ app.MapScalarApiReference(options =>
         .WithTheme(ScalarTheme.BluePlanet);
 });
 
+// This is an API with no homepage; send the root to the interactive docs
+// so the deployed demo URL lands somewhere useful instead of a 404.
+app.MapGet("/", () => Results.Redirect("/scalar/v1"))
+    .ExcludeFromDescription();
+
 if (app.Environment.IsDevelopment() && hangfireEnabled)
 {
     app.UseHangfireDashboard("/hangfire");

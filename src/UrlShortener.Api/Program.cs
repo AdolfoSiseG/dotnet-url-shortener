@@ -88,6 +88,23 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddApiRateLimiting();
 
+// CORS for the React dashboard frontend, which runs on a separate origin.
+// Allowed origins come from configuration (Cors:AllowedOrigins) so Railway
+// can set the deployed Vercel domain without a code change; it defaults to
+// the Vite dev origin so local development needs no extra config. Auth is
+// carried by Bearer tokens (not cookies), so AllowCredentials is
+// intentionally omitted.
+const string CorsPolicyName = "DashboardFrontend";
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:5173" };
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicyName, policy => policy
+        .WithOrigins(corsOrigins)
+        .AllowAnyHeader()
+        .AllowAnyMethod());
+});
+
 var app = builder.Build();
 
 // Apply EF migrations on startup only when explicitly opted in. This is
@@ -133,6 +150,11 @@ if (app.Environment.IsProduction())
 {
     app.UseHttpsRedirection();
 }
+
+// Must run before authentication so that even a 401 response carries the
+// Access-Control-Allow-* headers; otherwise the browser masks the real
+// error as a generic CORS failure.
+app.UseCors(CorsPolicyName);
 
 app.UseAuthentication();
 app.UseAuthorization();

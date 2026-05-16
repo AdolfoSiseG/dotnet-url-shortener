@@ -4,31 +4,69 @@ namespace UrlShortener.Infrastructure.Persistence;
 
 // Managed Postgres providers (Railway, Heroku, Render) expose the database
 // as a single postgres:// URI. Npgsql needs key=value form, so translate a
-// URI once here. A value already in key=value form is returned unchanged,
-// so local development keeps using its appsettings connection string.
+// URI here. A value already in key=value form is returned unchanged, so
+// local development keeps using its appsettings connection string.
 public static class NpgsqlConnectionString
 {
     public static string FromRaw(string raw)
     {
+        raw = raw.Trim();
+
         if (!raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
             && !raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
         {
             return raw;
         }
 
-        var uri = new Uri(raw);
-        var userInfo = uri.UserInfo.Split(':', 2);
+        // Parsed by hand rather than with System.Uri: provider-generated
+        // passwords routinely contain '/', '+' or '=' which break Uri's
+        // authority parsing and silently yield an empty host.
+        var afterScheme = raw[(raw.IndexOf("://", StringComparison.Ordinal) + 3)..];
+
+        var at = afterScheme.LastIndexOf('@');
+        if (at < 0)
+        {
+            throw new InvalidOperationException(
+                "Database URL has no '@' separating credentials from host. " +
+                "Check the connection string / Railway variable reference.");
+        }
+
+        var credentials = afterScheme[..at];
+        var hostAndDb = afterScheme[(at + 1)..];
+
+        var credColon = credentials.IndexOf(':');
+        var user = credColon >= 0 ? credentials[..credColon] : credentials;
+        var password = credColon >= 0 ? credentials[(credColon + 1)..] : string.Empty;
+
+        var slash = hostAndDb.IndexOf('/');
+        var hostPort = slash >= 0 ? hostAndDb[..slash] : hostAndDb;
+        var dbAndQuery = slash >= 0 ? hostAndDb[(slash + 1)..] : string.Empty;
+
+        var question = dbAndQuery.IndexOf('?');
+        var database = question >= 0 ? dbAndQuery[..question] : dbAndQuery;
+
+        var portColon = hostPort.LastIndexOf(':');
+        var host = portColon >= 0 ? hostPort[..portColon] : hostPort;
+        var port = portColon >= 0 && int.TryParse(hostPort[(portColon + 1)..], out var parsed)
+            ? parsed
+            : 5432;
+
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            throw new InvalidOperationException(
+                "Database URL resolved without a host. The Railway variable " +
+                "reference is likely empty — use DATABASE_PUBLIC_URL.");
+        }
 
         var builder = new NpgsqlConnectionStringBuilder
         {
-            Host = uri.Host,
-            Port = uri.Port > 0 ? uri.Port : 5432,
-            Username = Uri.UnescapeDataString(userInfo[0]),
-            Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
-            Database = uri.AbsolutePath.Trim('/'),
-            // Managed Postgres requires TLS. SslMode.Require encrypts without
-            // validating the provider-internal CA, which is what Railway and
-            // similar hosts need (Npgsql 8+ no longer needs
+            Host = host,
+            Port = port,
+            Username = Uri.UnescapeDataString(user),
+            Password = Uri.UnescapeDataString(password),
+            Database = database,
+            // Managed Postgres requires TLS; SslMode.Require encrypts without
+            // validating the provider-internal CA (Npgsql 8+ needs no
             // TrustServerCertificate for this).
             SslMode = SslMode.Require
         };
